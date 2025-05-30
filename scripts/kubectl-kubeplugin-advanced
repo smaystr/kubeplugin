@@ -1,0 +1,75 @@
+#!/bin/bash
+
+# Advanced kubectl plugin wrapper
+# This plugin can call other sub-plugins written in different languages
+
+set -euo pipefail
+
+PLUGIN_DIR="$(dirname "$0")/kubeplugin-modules"
+SUBCOMMAND="${1:-}"
+
+# Function to display usage
+usage() {
+    echo "Usage: kubectl kubeplugin-advanced <subcommand> [options]"
+    echo ""
+    echo "Available subcommands:"
+    echo "  metrics    - Get resource metrics (bash implementation)"
+    echo "  analyze    - Analyze resource usage patterns (python)"
+    echo "  export     - Export metrics in various formats (go)"
+    echo "  report     - Generate usage reports (python)"
+    echo ""
+    echo "Options:"
+    echo "  -h, --help  Show this help message"
+    exit 0
+}
+
+# Check if no arguments provided
+if [[ -z "$SUBCOMMAND" ]] || [[ "$SUBCOMMAND" == "-h" ]] || [[ "$SUBCOMMAND" == "--help" ]]; then
+    usage
+fi
+
+# Remove first argument (subcommand) and pass the rest
+shift
+
+# Execute appropriate sub-plugin based on subcommand
+case "$SUBCOMMAND" in
+    metrics)
+        # Call the original bash implementation
+        exec "$(dirname "$0")/kubectl-kubeplugin" "$@"
+        ;;
+    analyze)
+        # Call Python analyzer if exists
+        if [[ -f "$PLUGIN_DIR/analyze.py" ]]; then
+            exec python3 "$PLUGIN_DIR/analyze.py" "$@"
+        else
+            echo "Error: Python analyzer module not found" >&2
+            echo "Expected location: $PLUGIN_DIR/analyze.py" >&2
+            exit 1
+        fi
+        ;;
+    export)
+        # Call Go exporter if exists
+        if [[ -f "$PLUGIN_DIR/export" ]]; then
+            exec "$PLUGIN_DIR/export" "$@"
+        else
+            echo "Error: Go exporter module not found" >&2
+            echo "Expected location: $PLUGIN_DIR/export" >&2
+            exit 1
+        fi
+        ;;
+    report)
+        # Call Python reporter if exists
+        if [[ -f "$PLUGIN_DIR/report.py" ]]; then
+            exec python3 "$PLUGIN_DIR/report.py" "$@"
+        else
+            echo "Error: Python reporter module not found" >&2
+            echo "Expected location: $PLUGIN_DIR/report.py" >&2
+            exit 1
+        fi
+        ;;
+    *)
+        echo "Error: Unknown subcommand '$SUBCOMMAND'" >&2
+        echo ""
+        usage
+        ;;
+esac 
